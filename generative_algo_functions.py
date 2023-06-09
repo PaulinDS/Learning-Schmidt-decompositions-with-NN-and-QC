@@ -177,7 +177,7 @@ def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
     A_new = set_bitstring_syst_A[index_to_keep]
     B_new = set_bitstring_syst_B[index_to_keep]
 
-    return A_new, B_new, set_bitstring_syst, lambdas, new_set_bitstring_syst, lambdas[index_to_keep]
+    return A_new, B_new, new_set_bitstring_syst, lambdas[index_to_keep]
 
 
 
