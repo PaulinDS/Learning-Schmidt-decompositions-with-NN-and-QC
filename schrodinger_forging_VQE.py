@@ -1,26 +1,30 @@
 from forging_functions import *
 
-import netket as nk
 import openfermion as of
-from openfermion import jordan_wigner
 from openfermion import get_sparse_operator, get_ground_state
 from openfermion import QubitOperator
 import jax
 import jax.numpy as jnp
 from jax import random
 import pennylane as qml
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-from functools import partial
-from jax.lax import scan
-from jax.lax import cond
-from jax.lax import dynamic_slice
-import netket as nk
 import optax
 from optax import adabelief, sgd
 
 
+#########    Define the of Hamitonian    #########
+
+
+#TFIM 1d 14 spins
+n_qubits = 14
+H_of = QubitOperator('Z{} Z0'.format(n_qubits-1))
+  H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
+for i in range(n_qubits):
+  H_of += QubitOperator('X{}'.format(i))
+  
+n_qubits = n_qubits
+N = n_qubits//2
+print("Number of qubits: ", n_qubits)
+print("Subsystems size: ", N)   
 
 
 
@@ -52,14 +56,8 @@ bitstringA = jnp.array([[0, 0, 0, 0, 1, 1],
        [1, 1, 1, 1, 0, 1],
        [0, 1, 0, 1, 1, 0]], dtype=jnp.int32)
 
-bitstringB = jnp.array([[1, 0, 0, 0, 0, 1],
-       [0, 0, 1, 0, 0, 0],
-       [1, 0, 1, 1, 1, 0],
-       [0, 0, 1, 1, 1, 0],
-       [0, 0, 0, 0, 0, 1],
-       [0, 0, 0, 1, 1, 0],
-       [0, 1, 1, 1, 1, 0],
-       [1, 0, 0, 1, 0, 1]], dtype=jnp.int32)
+bitstringB = bitstringA
+
 
 n_layers = 15
 Schmidt_rank = 8
