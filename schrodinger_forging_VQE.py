@@ -22,11 +22,25 @@ from optax import adabelief, sgd
 
 
 
+
+
+#########    Convert the of Hamitonian    #########
+
+
+
+H_A, H_B, H_overlap_A, H_overlap_B, H_overlap_coef_jnp = creat_EF_hamiltonian(H_of, n_qubits)
+
 name_models = ['TFIM1d14s', 'Heis1d14s', 'J1J21d14s', 'TFIM2d12s', 'tV4x3', 'TFIM1d14srdmh', 'TFIM1d14srdmh_rdmJ', 'TFIM2d12srdmh', 'TFIM2d12srdmh_CBC']
 
 model_nbr = 0
 
 print('This is the {}'.format(name_models[model_nbr]))
+
+
+
+
+
+#########    Simulation    #########
 
 
 bitstringA = jnp.array([[0, 0, 0, 0, 1, 1],
