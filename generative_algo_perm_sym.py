@@ -35,6 +35,7 @@ from jaxopt.projection import projection_l2_sphere
 
 
 #TFIM 1d 14 spins
+n_qubits = 14
 H_of = QubitOperator('Z{} Z0'.format(n_qubits-1))
   H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
 for i in range(n_qubits):
