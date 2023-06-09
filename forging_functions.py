@@ -262,3 +262,67 @@ def Circuits_Observable_phi_list_jitB(params, inputs_n, inputs_m, p):
 
 
 
+def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
+
+  E = 0
+  S_rank = jnp.shape(bitstringA)[0] 
+  
+  #all diago terms
+  Circ_Obs_partA_vmap = jax.vmap(partial(Circuits_ObservableA, params=params_A)) 
+  Circ_Obs_partB_vmap = jax.vmap(partial(Circuits_ObservableB, params=params_B))
+
+  Circ_Obs_part_overA_vmap = jax.vmap(partial(Circuits_Observable_listA, params=params_A))
+  Circ_Obs_part_overB_vmap = jax.vmap(partial(Circuits_Observable_listB, params=params_B))
+
+  E += jnp.sum(Schmidt_coef*Schmidt_coef*Circ_Obs_partA_vmap(inputs=bitstringA))
+  E += jnp.sum(Schmidt_coef*Schmidt_coef*Circ_Obs_partB_vmap(inputs=bitstringB))
+
+  A = Circ_Obs_part_overA_vmap(inputs=bitstringA)
+  B = Circ_Obs_part_overB_vmap(inputs=bitstringB)
+  E += jnp.sum(Schmidt_coef*Schmidt_coef*jnp.sum(H_overlap_coef_jnp*A*B,axis=1))
+
+
+  ##off diago terms
+  #loc op
+  p = jnp.arange(0,4,1,dtype=int)
+
+  Circ_Obs_phi_partA_vmap = jax.vmap(jax.vmap(partial(Circuits_Observable_phi_jitA, params_A),in_axes=(0, None, None)), in_axes=(None, 0, None))
+  resA = Circ_Obs_phi_partA_vmap(bitstringA, bitstringA, p)
+  Circ_Obs_phi_partB_vmap = jax.vmap(jax.vmap(partial(Circuits_Observable_phi_jitB, params_B),in_axes=(0, None, None)), in_axes=(None, 0, None))
+  resB = Circ_Obs_phi_partB_vmap(bitstringB, bitstringB, p)
+  Circ_Obs_phi_part_overA_vmap = jax.vmap(jax.vmap(partial(Circuits_Observable_phi_list_jitA, params_A),in_axes=(0, None, None)), in_axes=(None, 0, None))
+  resoA = Circ_Obs_phi_part_overA_vmap(bitstringA, bitstringA, p)
+  Circ_Obs_phi_part_overB_vmap = jax.vmap(jax.vmap(partial(Circuits_Observable_phi_list_jitB, params_B),in_axes=(0, None, None)), in_axes=(None, 0, None))
+  resoB = Circ_Obs_phi_part_overB_vmap(bitstringB, bitstringB, p)
+
+ 
+  def Eloc_loop_offdiag(carry,m): #carry = (Et,n)
+    Et, n = carry
+
+    Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*resA[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0) #to have the sum m<n
+    Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*resB[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0)
+    Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*jnp.einsum('k,ijkl,ijkl->ijl',H_overlap_coef_jnp,resoA,resoB)[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0)
+
+    return (Et, n), m
+
+  def Eloc_loop(carry,n): #n: accumulated, E: carryover
+    Et = carry
+    temp, m = scan(Eloc_loop_offdiag, init=(0,n), xs=jnp.arange(0,S_rank,1,dtype=int))
+    Ett, n = temp
+    Et += Ett
+    return Et, n
+
+  Et, n = scan(Eloc_loop, init=0, xs=jnp.arange(0,S_rank,1,dtype=int))
+  E += Et
+
+  
+  return E 
+
+grad_E_fn_circA = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 0))
+grad_E_fn_circB = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 1))
+grad_E_fn_schmidt = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 2))
+
+
+
+
+
