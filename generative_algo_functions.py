@@ -43,8 +43,8 @@ def off_diago_terms_perm_sym(params_A, params_B, bitstring_i, bitstring_j):
   res += (-1)**p*jnp.einsum('i,ij,ij->j', H_overlap_coef_jnp, Circuits_Observable_phi_list_jitA(params_A, bitstring_i ,bitstring_j, p),Circuits_Observable_phi_list_jitB(params_B, bitstring_i ,bitstring_j, p))
   return jnp.sum(res)
   
-diago_terms_perm_sym_vmap = jax.jit(jax.vmap(diago_perm_sym_terms, in_axes=(None,None,0)))
-off_diago_terms_perm_sym_vmap = jax.jit(jax.vmap(jax.vmap(off_diago_terms, in_axes=(None,None,0,None)), in_axes=(None,None,None,0)))
+diago_terms_perm_sym_vmap = jax.jit(jax.vmap(diago_terms_perm_sym, in_axes=(None,None,0)))
+off_diago_terms_perm_sym_vmap = jax.jit(jax.vmap(jax.vmap(off_diago_terms_perm_sym, in_axes=(None,None,0,None)), in_axes=(None,None,None,0)))
 
 def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
   """
