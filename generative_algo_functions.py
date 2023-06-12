@@ -1,7 +1,6 @@
 import jax
 import jax.numpy as jnp
 from jax import random
-import pennylane as qml
 from functools import partial
 import netket as nk
 from jaxopt import ProjectedGradient
@@ -10,14 +9,15 @@ from jaxopt.projection import projection_l2_sphere
 
 def sample_NN(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits = 10):
     """
-    get sample from NN in $s \in {-1, 1}$ and $S \in {0,1}$ conversion.
-    NN_params: Parameters of classical model
-    chain_length: Number of samples
+    get sample from NN, function taken and adapted from https://github.com/cqsl/Entanglement-Forging-with-GNN-models 
+    $s \in {-1, 1}$ and $S \in {0,1}$ conversion.
+    NN_params: Parameters of the ARNN
+    chain_length: Number of samples we want to get from the ARNN
     sa: Netket sampler
     NN_model: Netket NN model
     """
-    Sample, _ = nk.sampler.ARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length)
-    #Sample, _ = myARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length)
+    Sample, _ = nk.sampler.ARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) 
+    #Sample, _ = myARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) #modification of the sampler, if we want to control the number of excitations for exemple
     Sample = Sample.reshape(-1, n_qubits//2)
     s = jax.lax.stop_gradient(Sample)
     S = (s + 1)/2
@@ -27,7 +27,7 @@ def sample_NN(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits
 get_sample = partial(sample_NN, sa = sa, NN_model = model, n_qubits = n_qubits)
 
 
-#fct to construct the matrix for the syst of eqs
+#functions to construct the matrix for the syst of equation, Equation (...) in the paper, for permutation symetric systems
 @jax.jit
 def diago_terms_perm_sym(params_A, params_B, bitstring):
   A = Circuits_ObservableA(params_A, bitstring)
@@ -47,10 +47,24 @@ diago_terms_perm_sym_vmap = jax.jit(jax.vmap(diago_perm_sym_terms, in_axes=(None
 off_diago_terms_perm_sym_vmap = jax.jit(jax.vmap(jax.vmap(off_diago_terms, in_axes=(None,None,0,None)), in_axes=(None,None,None,0)))
 
 def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
+  """
+  steps 1-3 of the proposed algorithm (algo 1 in the paper), 
+  1) generate a set G of bitstrings from the ARNN
+  2) construct and solve the system of equations to compute the Schmidt coefficient
+  3) Create the new set A'
+  
+  This version is for permutation symetric systems
+  Thus, the same set of bitstrings for subsystem A and B can be taken
+  
+  NN_params: parameters of the ARNN
+  params_A: parameters of the parametrized quantum circuit acting on subsystem A
+  params_B: parameters of the parametrized quantum circuit acting on subsystem B
+  A: current set of bitstring
+  """
 
   #generate a set of bitstring
-  cut_off = 8
-  chain_length = 10
+  cut_off = 8 #cutoff in the Schmidt decomposition
+  chain_length = 10 #number of bitstrings generated
 
   s, G = get_sample(NN_params, chain_length=chain_length)
 
@@ -58,6 +72,7 @@ def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
   bitstring_syst = jnp.concatenate((A,G), axis=0)
   set_bitstring_syst, iS = jnp.unique(bitstring_syst, return_index=False, return_inverse=True, return_counts=False, axis=0)
   
+  #to ensure that functions always have arguments with the same shape, we remove the repetition of bitstrings after constructing the matrix, otherwise it jits again every time.
   d = diago_terms_perm_sym_vmap(params_A, params_B, bitstring_syst)
 
   Matrix_syst = jnp.diag(d)
@@ -66,7 +81,7 @@ def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
   cache = (jnp.triu(jnp.ones((jnp.shape(bitstring_syst)[0],jnp.shape(bitstring_syst)[0])))-1)*(-1) #creat a cache, triangular matrix with just 1 on the under tri
   Matrix_syst += cache*off_d
 
-  Matrix_syst = Matrix_syst[jnp.ix_(iS,iS)]
+  Matrix_syst = Matrix_syst[jnp.ix_(iS,iS)] 
 
   #solve the constrain probl
   f = lambda x: jnp.linalg.norm(Matrix_syst@x)
@@ -80,12 +95,11 @@ def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
   index_to_keep = jnp.argsort(jnp.abs(lambdas))[-cut_off:] 
   A_new = set_bitstring_syst[index_to_keep]
   lambdas_new = lambdas[index_to_keep]
-  #lambdas_G = lambdas[index_G]
 
   return A_new, set_bitstring_syst, lambdas, lambdas_new
   
 
-
+#functions to construct the matrix for the syst of equation, Equation (...) in the paper, for non permutation symetric systems
 @jax.jit
 def diago_terms_non_perm_sym(params_A, params_B, sets):
     bitstringA, bitstringB = sets
@@ -121,10 +135,21 @@ def split_new(new_set_bitstring_syst):
 
 def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
 
-
-    """
-    This function is for non symmetric systems
-    """
+  """
+  steps 1-3 of the proposed algorithm (algo 1 in the paper), 
+  1) generate a set G of bitstrings from the ARNN
+  2) construct and solve the system of equations to compute the Schmidt coefficient
+  3) Create the new set A', B'
+  
+  This version is for non-permutation symetric systems
+  Thus, the a different set of bitstrings for subsystem A and B need to be taken
+  
+  NN_params: parameters of the ARNN
+  params_A: parameters of the parametrized quantum circuit acting on subsystem A
+  params_B: parameters of the parametrized quantum circuit acting on subsystem B
+  A: current set of bitstring of subsystem A
+  B: current set of bitstring of subsystem B
+  """
 
     cut_off = 8
     chain_length = 30
@@ -135,17 +160,16 @@ def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
     G_A, G_B = split_gene(G_set)
 
     #construct the matrix of the syst of eqs
-    bitstring_syst_A = jnp.concatenate((A,G_A), axis=0) #important de mettre A avant G_A, sinon apres on peut avoir des sets de taille < cutoff!
-    bitstring_syst_B = jnp.concatenate((B,G_B), axis=0) #etant donné que jnp.unique sort les indexes de la premiere occurence, pas de soucis si c'est avant
+    bitstring_syst_A = jnp.concatenate((A,G_A), axis=0) #need to put A before G_A, otherwise, after we could get size < cutoff!
+    bitstring_syst_B = jnp.concatenate((B,G_B), axis=0) #since jnp.unique outputs the indexes based on the first occurrence, there's no problem if A/B are before 
 
     _, iA = jnp.unique(bitstring_syst_A, return_index=True, return_inverse=False, return_counts=False, axis=0)
     _, iB = jnp.unique(bitstring_syst_B, return_index=True, return_inverse=False, return_counts=False, axis=0)
-    iAB = jnp.intersect1d(iA, iB)
+    iAB = jnp.intersect1d(iA, iB) #we need to remove the repetition of bitstrings in each subsystems
     set_bitstring_syst_A = bitstring_syst_A[iAB]
     set_bitstring_syst_B = bitstring_syst_B[iAB]
 
-    #index_G = i[:jnp.shape(G_set_A)[0]]
-    #sets = (set_bitstring_syst_A,set_bitstring_syst_B)
+
     sets = (bitstring_syst_A,bitstring_syst_B)
 
     d = diago_terms_non_perm_sym_vmap(params_A, params_B, sets)
@@ -154,7 +178,7 @@ def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
     cache = 1-jnp.triu(jnp.ones((jnp.shape(bitstring_syst_A)[0],jnp.shape(bitstring_syst_A)[0]))) #creat a cache, triangular matrix with $
     Matrix_syst += cache*off_d
 
-    #remove the repetition of the bitstrings (after the creation of M to jit)
+    #to ensure that functions always have arguments with the same shape, we remove the repetition of bitstrings after constructing the matrix, otherwise it jits again every time.
     Matrix_syst = Matrix_syst[jnp.ix_(iAB,iAB)]
 
 
