@@ -1,26 +1,14 @@
-import netket as nk
-import openfermion as of
-from openfermion import jordan_wigner
-from openfermion import get_sparse_operator, get_ground_state
-from openfermion import QubitOperator
 import jax
 import jax.numpy as jnp
-from jax import random
 import pennylane as qml
-import numpy as np
-import matplotlib.pyplot as plt
-import time
-from functools import partial
 from jax.lax import scan
 from jax.lax import cond
-from jax.lax import dynamic_slice
-import optax
-from optax import adabelief, noisy_sgd, yogi, adam, sgd
-from jaxopt import ProjectedGradient
-from jaxopt.projection import projection_l2_sphere
 
-#SU
+
 def brick_wall_entangling(params):
+    """
+    One layer of the parametrized quantum circuit
+    """
     layers, qubits, _ = params.shape
     for i in range(qubits):
         qml.Hadamard(wires = i)
@@ -33,6 +21,13 @@ def brick_wall_entangling(params):
             if i%2 == 1:
                 qml.CNOT(wires = [2*j + 1, (2*j+2)%qubits])
 
+                
+ ##########      Function evaluating the various quantum expectation values in equation (...) in the paper  ##########               
+
+
+# In order not to have the operators in argument and being able to jit the functions, a lot of function have been define
+# Thus, the operators have to be global
+# Need functions for local operators in A, local operators in B and overlapping operators 
 
 @jax.jit
 def Circuits_ObservableA(params, inputs):
@@ -43,7 +38,7 @@ def Circuits_ObservableA(params, inputs):
         for i in range(n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
-        return qml.expval(H_A)
+        return qml.expval(H_A) 
     return qnode(params, inputs)
 
 @jax.jit
@@ -82,6 +77,9 @@ def Circuits_Observable_listB(params, inputs):
         return [qml.expval(Obs) for Obs in H_overlap_B]
     return qnode(params, inputs) 
    
+
+#functions preparing the state |phi> following the steps of S.M. 3 in https://arxiv.org/abs/2104.10220
+    
 @jax.jit
 def Circuits_Observable_phi_jitA(params, inputs_n ,inputs_m, p):  
 
@@ -123,7 +121,7 @@ def Circuits_Observable_phi_jitA(params, inputs_n ,inputs_m, p):
 
       brick_wall_entangling(params)
       
-      return qml.expval(H_A)  #qml.state()
+      return qml.expval(H_A)  
 
   return qnode(params, T, S, t0)
 
@@ -263,6 +261,15 @@ def Circuits_Observable_phi_list_jitB(params, inputs_n, inputs_m, p):
 
 
 def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
+  """
+  Compute the variational energy using the functions define above
+  
+  params_A: parameters of the variational circuit acting on subsystem A
+  params_B: parameters of the variational circuit acting on subsystem B
+  Schmidt_coef: Schmidt coefficients, jnp vector if size (cutoff)
+  bitstringA: bitstrings of subsystem A, jnp matrix of size (cutoff,N)
+  bitstringB: bitstrings of subsystem B, jnp matrix of size (cutoff,N)
+  """
 
   E = 0
   S_rank = jnp.shape(bitstringA)[0] 
@@ -295,8 +302,8 @@ def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
   Circ_Obs_phi_part_overB_vmap = jax.vmap(jax.vmap(partial(Circuits_Observable_phi_list_jitB, params_B),in_axes=(0, None, None)), in_axes=(None, 0, None))
   resoB = Circ_Obs_phi_part_overB_vmap(bitstringB, bitstringB, p)
 
- 
-  def Eloc_loop_offdiag(carry,m): #carry = (Et,n)
+ # using jax.lax.scan but I think it could also be possible to do just tensors constractions (cleaner)
+  def Eloc_loop_offdiag(carry,m): 
     Et, n = carry
 
     Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*resA[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0) #to have the sum m<n
@@ -305,7 +312,7 @@ def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
 
     return (Et, n), m
 
-  def Eloc_loop(carry,n): #n: accumulated, E: carryover
+  def Eloc_loop(carry,n): 
     Et = carry
     temp, m = scan(Eloc_loop_offdiag, init=(0,n), xs=jnp.arange(0,S_rank,1,dtype=int))
     Ett, n = temp
@@ -318,6 +325,7 @@ def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
   
   return E 
 
+
 grad_E_fn_circA = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 0))
 grad_E_fn_circB = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 1))
 grad_E_fn_schmidt = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 2))
@@ -329,6 +337,9 @@ def creat_EF_hamiltonian(H_of, n_qubits):
     """
     group the operators into overlapping and local ones, convert them into qml, code taken and adapted from:
     https://github.com/cqsl/Entanglement-Forging-with-GNN-models
+    
+    H_of: Hamiltonian of the system expressed with openfermion
+    n_qubits: number of qubits of the total system
     """
 
     gates = {"X": qml.PauliX, "Y": qml.PauliY, "Z": qml.PauliZ, "I":qml.Identity}
