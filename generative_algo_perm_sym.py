@@ -2,7 +2,6 @@ from generative_algo_functions import *
 from forging_functions import *
 
 import netket as nk
-
 import openfermion as of
 from openfermion import jordan_wigner
 from openfermion import get_sparse_operator, get_ground_state
@@ -11,23 +10,15 @@ from openfermion import QubitOperator
 import jax
 import jax.numpy as jnp
 from jax import random
-
 import pennylane as qml
 import numpy as np
 import matplotlib.pyplot as plt
-
 import time
 import json
 from functools import partial
-
-from jax.lax import scan
-from jax.lax import cond
-from jax.lax import dynamic_slice
-
 import optax
-from optax import adabelief, noisy_sgd, yogi, adam, sgd
-from jaxopt import ProjectedGradient
-from jaxopt.projection import projection_l2_sphere
+from optax import adabelief, sgd
+
 
 
 
@@ -60,11 +51,11 @@ H_A, H_B, H_overlap_A, H_overlap_B, H_overlap_coef_jnp = creat_EF_hamiltonian(H_
 
 alpha = 2
 NN_features = alpha*N #dimension of the hidden neurons
-NN_layers = 8 #nbr of layers
+NN_layers = 5 #nbr of layers
 
 hi = nk.hilbert.Spin(s=0.5, N=int(N)) 
 sa = nk.sampler.ARDirectSampler(hi) 
-#sa = myARDirectSampler(hi) #if we want to control the number of one
+#sa = myARDirectSampler(hi) #if we want to control the number of one, need to adapt the sampler
 model = nk.models.ARNNDense(hilbert=hi, layers= NN_layers, features=NN_features, param_dtype = np.float32)
 
 # Initialize it
@@ -89,6 +80,12 @@ def kernel(x,y):
   
 @jax.jit
 def Loss_ARNN(NN_params, set_bitstring_syst, lambdas):
+  """
+  loss of the ARNN, MMD loss
+  NN_params: parameters of the ARNN
+  set_bitstring_syst: set of bitstrings we want to train on
+  lambdas: target Schmidt coefficient
+  """
 
   pi = jnp.exp(model.apply(NN_params, 2*(A_new-0.5)))
 
@@ -143,8 +140,8 @@ for i in range(50):
     #print(A_new)
     #print("Optimization of the ARNN:")
     for j in range(1):
-        val, grad = val_grad_ARNN(NN_params, set_bitstring_syst, lambdas)
-        #val, grad = val_grad_ARNN(NN_params, A_new, lambdas_new)
+        #val, grad = val_grad_ARNN(NN_params, set_bitstring_syst, lambdas)
+        val, grad = val_grad_ARNN(NN_params, A_new, lambdas_new)
         updatesARNN, opt_stateARNN = optARNN.update(grad, opt_stateARNN)
         NN_params = optax.apply_updates(NN_params, updatesARNN)
         print("It: {},ARNN loss: {}".format(j,val))
