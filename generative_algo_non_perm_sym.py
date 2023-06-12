@@ -2,32 +2,22 @@ from generative_algo_functions import *
 from forging_functions import *
 
 import netket as nk
-
 import openfermion as of
 from openfermion import jordan_wigner
 from openfermion import get_sparse_operator, get_ground_state
 from openfermion import QubitOperator
-
 import jax
 import jax.numpy as jnp
 from jax import random
-
 import pennylane as qml
 import numpy as np
 import matplotlib.pyplot as plt
-
 import time
 import json
 from functools import partial
-
-from jax.lax import scan
-from jax.lax import cond
-from jax.lax import dynamic_slice
-
 import optax
-from optax import adabelief, noisy_sgd, yogi, adam, sgd
-from jaxopt import ProjectedGradient
-from jaxopt.projection import projection_l2_sphere
+from optax import adabelief, sgd
+
 
 
 
@@ -92,7 +82,12 @@ def kernel(x,y):
   
 @jax.jit
 def Loss_ARNN(NN_params, set_bitstring_syst, lambdas):
-
+  """
+  loss of the ARNN, MMD loss
+  NN_params: parameters of the ARNN
+  set_bitstring_syst: set of bitstrings we want to train on
+  lambdas: target Schmidt coefficient
+  """
   pi = jnp.exp(model.apply(NN_params, 2*(A_new-0.5)))
 
   ## MMD
@@ -136,7 +131,6 @@ B = jnp.array([[0, 1, 0, 0, 1, 1],
 
 lr = 0.001
 optARNN = adabelief(learning_rate=lr) 
-#optARNN = sgd(learning_rate=lr) 
 opt_stateARNN = optARNN.init(NN_params)
 
 swap_A = []
