@@ -64,7 +64,7 @@ get_sample = partial(sample_NN_non_perm_sym, sa = sa, NN_model = model, n_qubits
 # Initialize it
 key = random.PRNGKey(123)
 key, subkey = random.split(key)
-s = jnp.ones(shape = (8, N), dtype=jnp.int32)
+s = jnp.ones(shape = (8, 2*N), dtype=jnp.int32)
 _, subkey = random.split(subkey)
 NN_params = model.init(subkey, s)
 
