@@ -5,6 +5,8 @@ from jax.lax import scan
 from jax.lax import cond
 import numpy as np
 
+import config
+
 
 def brick_wall_entangling(params):
     """
@@ -32,50 +34,50 @@ def brick_wall_entangling(params):
 
 @jax.jit
 def Circuits_ObservableA(params, inputs):
-    dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+    dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
     @jax.jit   
     @qml.qnode(dev, interface='jax', diff_method="backprop")
     def qnode(params, inputs):
         for i in range(n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
-        return qml.expval(H_A) 
+        return qml.expval(config.H_A) 
     return qnode(params, inputs)
 
 @jax.jit
 def Circuits_ObservableB(params, inputs):
-    dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+    dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
     @jax.jit
     @qml.qnode(dev, interface='jax', diff_method="backprop")
     def qnode(params, inputs):
         for i in range(n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
-        return qml.expval(H_B)
+        return qml.expval(config.H_B)
     return qnode(params, inputs) 
 
 @jax.jit
 def Circuits_Observable_listA(params, inputs):
-    dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+    dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
     @jax.jit  
     @qml.qnode(dev, interface='jax', diff_method="backprop")
     def qnode(params, inputs):
-        for i in range(n_qubits//2):
+        for i in range(config.n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
-        return [qml.expval(Obs) for Obs in H_overlap_B]
+        return [qml.expval(Obs) for Obs in config.H_overlap_B]
     return qnode(params, inputs) 
 
 @jax.jit
 def Circuits_Observable_listB(params, inputs):
-    dev = qml.device('default.qubit.jax', wires=n_qubits//2) 
+    dev = qml.device('default.qubit.jax', wires=config.n_qubits//2) 
     @jax.jit   
     @qml.qnode(dev, interface='jax', diff_method="backprop")
     def qnode(params, inputs):
-        for i in range(n_qubits//2):
+        for i in range(config.n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
-        return [qml.expval(Obs) for Obs in H_overlap_B]
+        return [qml.expval(Obs) for Obs in config.H_overlap_B]
     return qnode(params, inputs) 
    
 
@@ -94,7 +96,7 @@ def Circuits_Observable_phi_jitA(params, inputs_n ,inputs_m, p):
   T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
   t0 = new_inputs_n[0]
 
-  dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+  dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
   @jax.jit
   @qml.qnode(dev, interface='jax', diff_method="backprop")
   def qnode(params, T, S, t0):
@@ -122,7 +124,7 @@ def Circuits_Observable_phi_jitA(params, inputs_n ,inputs_m, p):
 
       brick_wall_entangling(params)
       
-      return qml.expval(H_A)  
+      return qml.expval(config.H_A)  
 
   return qnode(params, T, S, t0)
 
@@ -139,7 +141,7 @@ def Circuits_Observable_phi_jitB(params, inputs_n, inputs_m, p):
   T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
   t0 = new_inputs_n[0]
 
-  dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+  dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
   @jax.jit 
   @qml.qnode(dev, interface='jax', diff_method="backprop")
   def qnode(params, T, S, t0):
@@ -167,7 +169,7 @@ def Circuits_Observable_phi_jitB(params, inputs_n, inputs_m, p):
 
       brick_wall_entangling(params)
       
-      return qml.expval(H_B)  #qml.state()
+      return qml.expval(config.H_B)  #qml.state()
 
   return qnode(params, T, S, t0)
 
@@ -183,7 +185,7 @@ def Circuits_Observable_phi_list_jitA(params, inputs_n, inputs_m, p):
   T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
   t0 = new_inputs_n[0]
 
-  dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+  dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
   @jax.jit
   @qml.qnode(dev, interface='jax', diff_method="backprop")
   def qnode(params, T, S, t0):
@@ -211,7 +213,7 @@ def Circuits_Observable_phi_list_jitA(params, inputs_n, inputs_m, p):
 
       brick_wall_entangling(params)
 
-      return [qml.expval(Obs) for Obs in H_overlap_A]
+      return [qml.expval(Obs) for Obs in config.H_overlap_A]
 
   return qnode(params, T, S, t0)
 
@@ -227,7 +229,7 @@ def Circuits_Observable_phi_list_jitB(params, inputs_n, inputs_m, p):
   T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
   t0 = new_inputs_n[0]
 
-  dev = qml.device('default.qubit.jax', wires=n_qubits//2)  
+  dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
   @jax.jit 
   @qml.qnode(dev, interface='jax', diff_method="backprop")
   def qnode(params, T, S, t0):
@@ -255,7 +257,7 @@ def Circuits_Observable_phi_list_jitB(params, inputs_n, inputs_m, p):
 
       brick_wall_entangling(params)
       
-      return [qml.expval(Obs) for Obs in H_overlap_B]
+      return [qml.expval(Obs) for Obs in config.H_overlap_B]
 
   return qnode(params, T, S, t0)
 
