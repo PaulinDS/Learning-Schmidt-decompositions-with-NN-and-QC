@@ -9,7 +9,7 @@ In [forging_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decomposi
 
 In [generative_algo_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/generative_algo_functions.py), there are functions used for the generative algorithm
 
-In [generative_algo_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/generative_algo_functions.py), there are functions used for the generative algorithm
+In [generative_algo_non_perm_sym.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/generative_algo_non_perm_sym.py), there is an example of how to use the different files to run the algorithm generating the set the bitstrings on a non permutation symetric system.
 
 
 ## Package Versions
