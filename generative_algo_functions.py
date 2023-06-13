@@ -49,7 +49,7 @@ def sample_NN_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = None,
     return s, S
 
   
- def sample_NN_non_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits = 10):
+def sample_NN_non_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits = 10):
     """
     get sample from NN, function taken and adapted from https://github.com/cqsl/Entanglement-Forging-with-GNN-models 
     $s \in {-1, 1}$ and $S \in {0,1}$ conversion.
