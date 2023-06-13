@@ -3,6 +3,7 @@ Entanglement forging with autoregressive neural network (ARNN). In the Schrödin
 
 ## Structure
 
+In [forging_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/forging_functions.py)
 
 
 
