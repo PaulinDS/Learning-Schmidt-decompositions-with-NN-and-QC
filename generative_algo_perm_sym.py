@@ -126,6 +126,19 @@ optARNN = adabelief(learning_rate=lr)
 opt_stateARNN = optARNN.init(NN_params)
 train_set = [A.tolist()]
 
+k = 8 #cutoff
+
+n_layers = 5 #number of layers in the variational circuits
+params_shape = (n_layers, N, 3)
+key = random.PRNGKey(1234)
+key, subkey = random.split(key)
+params_A = random.uniform(subkey, params_shape, dtype = np.float32) #parameters for the circuit acting on subsystem A
+key, subkey = random.split(key)
+params_B = random.uniform(subkey, params_shape, dtype = np.float32) #paramters for the circuit acting on subsystem B
+Schmidt_coef = jnp.ones((k,), dtype = np.float32) #Schmidt coefficient
+Schmidt_coef = Schmidt_coef/jnp.sqrt(jnp.sum(Schmidt_coef**2))
+
+
 
 for i in range(50):
     A_new, set_bitstring_syst, lambdas, lambdas_new = Generative_loop_perm_sym(NN_params, params_A, params_B, A)
