@@ -30,8 +30,8 @@ key = random.PRNGKey(1234)
 key, subkey = random.split(key)
 h_i = random.uniform(subkey, (n_qubits,), dtype = jnp.float32).tolist()
 H_of = QubitOperator('Z{} Z0'.format(n_qubits-1))
-  H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
 for i in range(n_qubits):
+  H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
   H_of += h_i[0]*QubitOperator('X{}'.format(i))
   
 n_qubits = n_qubits
