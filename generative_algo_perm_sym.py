@@ -1,4 +1,5 @@
 from forging_functions import *
+from generative_algo_functions import *
 
 import netket as nk
 import openfermion as of
@@ -56,7 +57,7 @@ hi = nk.hilbert.Spin(s=0.5, N=int(N))
 sa = nk.sampler.ARDirectSampler(hi) 
 #sa = myARDirectSampler(hi) #if we want to control the number of one, need to adapt the sampler
 model = nk.models.ARNNDense(hilbert=hi, layers= NN_layers, features=NN_features, param_dtype = np.float32)
-get_sample = partial(sample_NN, sa = sa, NN_model = model, n_qubits = n_qubits)
+get_sample = partial(sample_NN_perm_sym, sa = sa, NN_model = model, n_qubits = n_qubits)
 
 # Initialize it
 key = random.PRNGKey(123)
@@ -66,8 +67,6 @@ _, subkey = random.split(subkey)
 NN_params = model.init(subkey, s)
 
 
-
-from generative_algo_functions import *
 
 
 #########    ARNN Loss    #########
