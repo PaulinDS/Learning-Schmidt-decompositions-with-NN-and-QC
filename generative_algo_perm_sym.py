@@ -1,4 +1,3 @@
-from generative_algo_functions import *
 from forging_functions import *
 
 import netket as nk
@@ -68,7 +67,7 @@ NN_params = model.init(subkey, s)
 
 
 
-
+from generative_algo_functions import *
 
 
 #########    ARNN Loss    #########
