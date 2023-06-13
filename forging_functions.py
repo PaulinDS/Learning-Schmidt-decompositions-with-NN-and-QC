@@ -350,6 +350,8 @@ def creat_EF_hamiltonian(H_of, n_qubits):
     local_operators_A = []
     local_operators_B = []
     overlap_operators = []
+    
+    N = n_qubits//2
 
     k = 0
     for o in H_of: 
