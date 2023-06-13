@@ -14,7 +14,7 @@ from forging_functions import *
 def diago_terms_perm_sym(params_A, params_B, bitstring):
   A = Circuits_ObservableA(params_A, bitstring)
   B = Circuits_ObservableB(params_B, bitstring)
-  O = jnp.sum(H_overlap_coef_jnp*Circuits_Observable_listA(params_A, bitstring)*Circuits_Observable_listB(params_B, bitstring))
+  O = jnp.sum(config.H_overlap_coef_jnp*Circuits_Observable_listA(params_A, bitstring)*Circuits_Observable_listB(params_B, bitstring))
   return 2.*(A + B + O)
 
 @jax.jit
@@ -22,7 +22,7 @@ def off_diago_terms_perm_sym(params_A, params_B, bitstring_i, bitstring_j):
   p = jnp.arange(0,4)
   res = (-1)**p*Circuits_Observable_phi_jitA(params_A, bitstring_i ,bitstring_j, p)
   res += (-1)**p*Circuits_Observable_phi_jitB(params_B, bitstring_i ,bitstring_j, p)
-  res += (-1)**p*jnp.einsum('i,ij,ij->j', H_overlap_coef_jnp, Circuits_Observable_phi_list_jitA(params_A, bitstring_i ,bitstring_j, p),Circuits_Observable_phi_list_jitB(params_B, bitstring_i ,bitstring_j, p))
+  res += (-1)**p*jnp.einsum('i,ij,ij->j', config.H_overlap_coef_jnp, Circuits_Observable_phi_list_jitA(params_A, bitstring_i ,bitstring_j, p),Circuits_Observable_phi_list_jitB(params_B, bitstring_i ,bitstring_j, p))
   return jnp.sum(res)
   
 diago_terms_perm_sym_vmap = jax.jit(jax.vmap(diago_terms_perm_sym, in_axes=(None,None,0)))
@@ -65,6 +65,9 @@ def sample_NN_non_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = N
     S = S.astype(int)
     return s, S
 
+get_sample_perm_sym = partial(sample_NN_perm_sym, sa = config.sa, NN_model = config.model, n_qubits = config.n_qubits)
+get_sample_non_perm_sym = partial(sample_NN_non_perm_sym, sa = config.sa, NN_model = config.model, n_qubits = config.n_qubits)
+
 
 
 
@@ -88,7 +91,7 @@ def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
   cut_off = 8 #cutoff in the Schmidt decomposition
   chain_length = 10 #number of bitstrings generated
 
-  s, G = get_sample(NN_params, chain_length=chain_length)
+  s, G = get_sample_perm_sym(NN_params, chain_length=chain_length)
 
   #construct the matrix of the syst of eqs
   bitstring_syst = jnp.concatenate((A,G), axis=0)
@@ -127,7 +130,7 @@ def diago_terms_non_perm_sym(params_A, params_B, sets):
     bitstringA, bitstringB = sets
     oA = Circuits_ObservableA(params_A, bitstringA)
     oB = Circuits_ObservableB(params_B, bitstringB)
-    oO = jnp.sum(Circuits_Observable_listA(params_A, bitstringA)*Circuits_Observable_listB(params_B, bitstringB))
+    oO = jnp.sum(config.H_overlap_coef_jnp*Circuits_Observable_listA(params_A, bitstringA)*Circuits_Observable_listB(params_B, bitstringB))
     return 2.*(oA + oB + oO)
 
 @jax.jit
@@ -137,7 +140,7 @@ def off_diago_terms_non_perm_sym(params_A, params_B, sets_i, sets_j):
   p = jnp.arange(0,4)
   res = (-1)**p*Circuits_Observable_phi_jitA(params_A, bitstringA_i ,bitstringA_j, p)
   res += (-1)**p*Circuits_Observable_phi_jitB(params_B, bitstringB_i ,bitstringB_j, p)
-  res += (-1)**p*jnp.einsum('i,ij,ij->j', H_overlap_coef_jnp, Circuits_Observable_phi_list_jitA(params_A, bitstringA_i ,bitstringA_j, p),Circuits_Observable_phi_list_jitB(params_B, bitstringB_i ,bitstringB_j, p))
+  res += (-1)**p*jnp.einsum('i,ij,ij->j', config.H_overlap_coef_jnp, Circuits_Observable_phi_list_jitA(params_A, bitstringA_i ,bitstringA_j, p),Circuits_Observable_phi_list_jitB(params_B, bitstringB_i ,bitstringB_j, p))
   return jnp.sum(res)
 
 diago_terms_non_perm_sym_vmap = jax.jit(jax.vmap(diago_terms_non_perm_sym, in_axes=(None,None,0)))
@@ -155,7 +158,7 @@ def split_new(new_set_bitstring_syst):
 
 
 
-def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
+def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, subkey):
 
   """
   steps 1-3 of the proposed algorithm (algo 1 in the paper), 
@@ -174,10 +177,10 @@ def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
   """
 
   cut_off = 8
-  chain_length = 30
+  chain_length = 10
 
   #generate a sets of bitstring
-  s, G_set = get_sample(NN_params, chain_length=chain_length)
+  s, G_set = get_sample_non_perm_sym(NN_params, chain_length=chain_length)
 
   G_A, G_B = split_gene(G_set)
 
@@ -225,7 +228,15 @@ def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
 
   return A_new, B_new, new_set_bitstring_syst, lambdas[index_to_keep]
 
-
+@jax.jit
+def count_common_rows(matrix1, matrix2):
+    # Define a function that checks whether a row is in the second matrix
+    def is_row_in_matrix(row, matrix):
+        return jnp.sum(jnp.all(matrix == row, axis=1)) > 0
+    # Use vmap to apply the function to each row of the first matrix
+    common_rows = jax.vmap(lambda row: is_row_in_matrix(row, matrix2))(matrix1)
+    # Count the number of True values (i.e., common rows)
+    return jnp.sum(common_rows)
 
 
   
