@@ -6,7 +6,7 @@ import netket as nk
 from jaxopt import ProjectedGradient
 from jaxopt.projection import projection_l2_sphere
 
-from forging_functions.py import *
+from forging_functions import *
 
 
 #functions to construct the matrix for the syst of equation, Equation (...) in the paper, for permutation symetric systems
