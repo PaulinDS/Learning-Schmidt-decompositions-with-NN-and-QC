@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import pennylane as qml
 from jax.lax import scan
 from jax.lax import cond
+import numpy as np
 
 
 def brick_wall_entangling(params):
