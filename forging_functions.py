@@ -312,7 +312,7 @@ def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
 
     Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*resA[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0) #to have the sum m<n
     Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*resB[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0)
-    Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*jnp.einsum('k,ijkl,ijkl->ijl',H_overlap_coef_jnp,resoA,resoB)[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0)
+    Et += Schmidt_coef[n]*Schmidt_coef[m]*jnp.sum((-1)**p*jnp.einsum('k,ijkl,ijkl->ijl',config.H_overlap_coef_jnp,resoA,resoB)[n,m])*cond(m<n, lambda x: 1, lambda x: 0, 0)
 
     return (Et, n), m
 
