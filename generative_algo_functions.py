@@ -24,7 +24,7 @@ def sample_NN(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits
     S = S.astype(int)
     return s, S
 
-get_sample = partial(sample_NN, sa = sa, NN_model = model, n_qubits = n_qubits)
+
 
 
 #functions to construct the matrix for the syst of equation, Equation (...) in the paper, for permutation symetric systems
@@ -151,57 +151,57 @@ def Generative_loop_non_perm_sym(NN_params, params_A, params_B, A, B, key):
   B: current set of bitstring of subsystem B
   """
 
-    cut_off = 8
-    chain_length = 30
+cut_off = 8
+chain_length = 30
 
-    #generate a sets of bitstring
-    s, G_set = get_sample(NN_params, chain_length=chain_length)
+#generate a sets of bitstring
+s, G_set = get_sample(NN_params, chain_length=chain_length)
 
-    G_A, G_B = split_gene(G_set)
+G_A, G_B = split_gene(G_set)
 
-    #construct the matrix of the syst of eqs
-    bitstring_syst_A = jnp.concatenate((A,G_A), axis=0) #need to put A before G_A, otherwise, after we could get size < cutoff!
-    bitstring_syst_B = jnp.concatenate((B,G_B), axis=0) #since jnp.unique outputs the indexes based on the first occurrence, there's no problem if A/B are before 
+#construct the matrix of the syst of eqs
+bitstring_syst_A = jnp.concatenate((A,G_A), axis=0) #need to put A before G_A, otherwise, after we could get size < cutoff!
+bitstring_syst_B = jnp.concatenate((B,G_B), axis=0) #since jnp.unique outputs the indexes based on the first occurrence, there's no problem if A/B are before 
 
-    _, iA = jnp.unique(bitstring_syst_A, return_index=True, return_inverse=False, return_counts=False, axis=0)
-    _, iB = jnp.unique(bitstring_syst_B, return_index=True, return_inverse=False, return_counts=False, axis=0)
-    iAB = jnp.intersect1d(iA, iB) #we need to remove the repetition of bitstrings in each subsystems
-    set_bitstring_syst_A = bitstring_syst_A[iAB]
-    set_bitstring_syst_B = bitstring_syst_B[iAB]
-
-
-    sets = (bitstring_syst_A,bitstring_syst_B)
-
-    d = diago_terms_non_perm_sym_vmap(params_A, params_B, sets)
-    Matrix_syst = jnp.diag(d)
-    off_d = off_diago_terms_non_perm_sym_vmap(params_A, params_B, sets, sets)
-    cache = 1-jnp.triu(jnp.ones((jnp.shape(bitstring_syst_A)[0],jnp.shape(bitstring_syst_A)[0]))) #creat a cache, triangular matrix with $
-    Matrix_syst += cache*off_d
-
-    #to ensure that functions always have arguments with the same shape, we remove the repetition of bitstrings after constructing the matrix, otherwise it jits again every time.
-    Matrix_syst = Matrix_syst[jnp.ix_(iAB,iAB)]
+_, iA = jnp.unique(bitstring_syst_A, return_index=True, return_inverse=False, return_counts=False, axis=0)
+_, iB = jnp.unique(bitstring_syst_B, return_index=True, return_inverse=False, return_counts=False, axis=0)
+iAB = jnp.intersect1d(iA, iB) #we need to remove the repetition of bitstrings in each subsystems
+set_bitstring_syst_A = bitstring_syst_A[iAB]
+set_bitstring_syst_B = bitstring_syst_B[iAB]
 
 
-    #solve the constrain probl
-    f = lambda x: jnp.linalg.norm(Matrix_syst@x)
+sets = (bitstring_syst_A,bitstring_syst_B)
 
-    radius = 1.0
-    pg = ProjectedGradient(fun=f, projection=projection_l2_sphere, maxiter=5000)
-    lamb_init = random.uniform(subkey, [jnp.shape(Matrix_syst)[0]])
-    lamb_init = lamb_init/jnp.sqrt(jnp.sum(lamb_init**2))
-    lambdas = pg.run(lamb_init, hyperparams_proj=radius).params
+d = diago_terms_non_perm_sym_vmap(params_A, params_B, sets)
+Matrix_syst = jnp.diag(d)
+off_d = off_diago_terms_non_perm_sym_vmap(params_A, params_B, sets, sets)
+cache = 1-jnp.triu(jnp.ones((jnp.shape(bitstring_syst_A)[0],jnp.shape(bitstring_syst_A)[0]))) #creat a cache, triangular matrix with $
+Matrix_syst += cache*off_d
 
-    #reconc set A and B for the training of the ARNN
-    set_bitstring_syst = jnp.concatenate((set_bitstring_syst_A,set_bitstring_syst_B), axis=1)
-    #set_bitstring_syst, i = jnp.unique(bitstring_syst, return_index=True, return_inverse=False, return_counts=False, axis=0, size=None, fill_value=None)
+#to ensure that functions always have arguments with the same shape, we remove the repetition of bitstrings after constructing the matrix, otherwise it jits again every time.
+Matrix_syst = Matrix_syst[jnp.ix_(iAB,iAB)]
 
-    index_to_keep = jnp.argsort(jnp.abs(lambdas))[-cut_off:]
-    new_set_bitstring_syst = set_bitstring_syst[index_to_keep]
-    #A_new, B_new = jnp.split(new_set_bitstring_syst, 2, axis=1)
-    A_new = set_bitstring_syst_A[index_to_keep]
-    B_new = set_bitstring_syst_B[index_to_keep]
 
-    return A_new, B_new, new_set_bitstring_syst, lambdas[index_to_keep]
+#solve the constrain probl
+f = lambda x: jnp.linalg.norm(Matrix_syst@x)
+
+radius = 1.0
+pg = ProjectedGradient(fun=f, projection=projection_l2_sphere, maxiter=5000)
+lamb_init = random.uniform(subkey, [jnp.shape(Matrix_syst)[0]])
+lamb_init = lamb_init/jnp.sqrt(jnp.sum(lamb_init**2))
+lambdas = pg.run(lamb_init, hyperparams_proj=radius).params
+
+#reconc set A and B for the training of the ARNN
+set_bitstring_syst = jnp.concatenate((set_bitstring_syst_A,set_bitstring_syst_B), axis=1)
+#set_bitstring_syst, i = jnp.unique(bitstring_syst, return_index=True, return_inverse=False, return_counts=False, axis=0, size=None, fill_value=None)
+
+index_to_keep = jnp.argsort(jnp.abs(lambdas))[-cut_off:]
+new_set_bitstring_syst = set_bitstring_syst[index_to_keep]
+#A_new, B_new = jnp.split(new_set_bitstring_syst, 2, axis=1)
+A_new = set_bitstring_syst_A[index_to_keep]
+B_new = set_bitstring_syst_B[index_to_keep]
+
+return A_new, B_new, new_set_bitstring_syst, lambdas[index_to_keep]
 
 
 
