@@ -58,6 +58,7 @@ NN_layers = 5 #nbr of layers
 hi = nk.hilbert.Spin(s=0.5, N=int(2*N)) 
 sa = nk.sampler.ARDirectSampler(hi) 
 #sa = myARDirectSampler(hi) #if we want to control the number of one
+get_sample = partial(sample_NN, sa = sa, NN_model = model, n_qubits = n_qubits)
 model = nk.models.ARNNDense(hilbert=hi, layers= NN_layers, features=NN_features, param_dtype = np.float32)
 
 # Initialize it
