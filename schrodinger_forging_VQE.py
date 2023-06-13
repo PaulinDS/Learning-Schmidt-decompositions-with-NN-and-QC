@@ -1,5 +1,3 @@
-from forging_functions import *
-
 import openfermion as of
 from openfermion import get_sparse_operator, get_ground_state
 from openfermion import QubitOperator
@@ -9,69 +7,60 @@ from jax import random
 import pennylane as qml
 import optax
 from optax import adabelief, sgd
+import time
 
+import config
+
+from forging_functions import *
 
 #########    Define the of Hamitonian    #########
 
 
-#TFIM 1d 14 spins
-n_qubits = 14
-H_of = QubitOperator('Z{} Z0'.format(n_qubits-1))
-  H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
-for i in range(n_qubits):
-  H_of += QubitOperator('X{}'.format(i))
-  
-n_qubits = n_qubits
-N = n_qubits//2
-print("Number of qubits: ", n_qubits)
-print("Subsystems size: ", N)   
+print("Number of qubits: ", config.n_qubits)
+print("Subsystems size: ", config.N)   
 
-
-
-#########    Convert the of Hamitonian    #########
-
-
-
-H_A, H_B, H_overlap_A, H_overlap_B, H_overlap_coef_jnp = creat_EF_hamiltonian(H_of, n_qubits)
-
-name_models = ['TFIM1d14s', 'Heis1d14s', 'J1J21d14s', 'TFIM2d12s', 'tV4x3', 'TFIM1d14srdmh', 'TFIM1d14srdmh_rdmJ', 'TFIM2d12srdmh', 'TFIM2d12srdmh_CBC']
-
-model_nbr = 0
-
-print('This is the {}'.format(name_models[model_nbr]))
-
-
+H = get_sparse_operator(config.H_of)
+E = get_ground_state(H)[0]
+print("GS energy:", E)
 
 
 
 #########    Simulation    #########
 
 
-bitstringA = jnp.array([[0, 0, 0, 0, 1, 1],
-       [1, 0, 0, 0, 0, 1],
-       [0, 1, 1, 1, 1, 0],
-       [0, 0, 1, 0, 1, 1],
-       [1, 0, 1, 0, 0, 1],
-       [0, 1, 1, 1, 0, 0],
-       [1, 1, 1, 1, 0, 1],
-       [0, 1, 0, 1, 1, 0]], dtype=jnp.int32)
+bitstringA = jnp.array([[1, 0, 0, 1, 1, 0],
+       [1, 0, 0, 0, 0, 0],
+       [1, 1, 0, 0, 0, 0],
+       [1, 1, 1, 1, 1, 0],
+       [1, 0, 1, 0, 1, 0],
+       [0, 0, 0, 0, 1, 0],
+       [1, 0, 1, 1, 0, 0],
+       [0, 0, 0, 1, 0, 1]], dtype=jnp.int32)
 
-bitstringB = bitstringA
+bitstringB = jnp.array([[1, 0, 0, 1, 0, 0],
+       [0, 1, 0, 1, 0, 1],
+       [0, 1, 0, 0, 0, 1],
+       [0, 0, 0, 1, 1, 1],
+       [0, 0, 0, 1, 0, 1],
+       [0, 0, 0, 0, 1, 0],
+       [0, 0, 1, 0, 1, 1],
+       [0, 0, 1, 1, 0, 1]], dtype=jnp.int32)
 
 
 n_layers = 15
 Schmidt_rank = 8
 
 #for QC
-params_shape = (n_layers, N, 3)
+k = 8 #cutoff
 
+n_layers = 5 #number of layers in the variational circuits
+params_shape = (n_layers, config.N, 3)
 key = random.PRNGKey(1234)
 key, subkey = random.split(key)
-params_A = random.uniform(subkey, params_shape, dtype = np.float32)
+params_A = random.uniform(subkey, params_shape, dtype = np.float32) #parameters for the circuit acting on subsystem A
 key, subkey = random.split(key)
-params_B = random.uniform(subkey, params_shape, dtype = np.float32)
-
-Schmidt_coef = jnp.ones((k,), dtype = np.float32)
+params_B = random.uniform(subkey, params_shape, dtype = np.float32) #paramters for the circuit acting on subsystem B
+Schmidt_coef = jnp.ones((k,), dtype = np.float32) #Schmidt coefficient
 Schmidt_coef = Schmidt_coef/jnp.sqrt(jnp.sum(Schmidt_coef**2))
 
 lr = 0.01
@@ -91,6 +80,21 @@ schmidt_progress = []
 loss_progress = []
 
 
+start = time.time()
+print("#####   Start jitting the gradients   #####")
+measure, grads_E_A = grad_E_fn_circA(params_A, params_B, Schmidt_coef, bitstringA,bitstringB)
+print("grad circuit A jitted")
+measure, grads_E_B = grad_E_fn_circB(params_A, params_B, Schmidt_coef, bitstringA,bitstringB)
+print("grad circuit B jitted")
+measure, grads_E_S = grad_E_fn_schmidt(params_A, params_B, Schmidt_coef, bitstringA,bitstringB)
+print("grad schmidt coef jitted")
+end = time.time()
+jit_time = (end-start)/60
+print("Time total to Jit: ", jit_time, " Minutes")
+
+name_models = "TFIM_1d_12s_rdmh"
+
+print("#####   Starting the VQE   #####")
 
 for i in range(epochs):
     _, subkey = random.split(subkey)
@@ -115,13 +119,12 @@ for i in range(epochs):
       schmidt_progress.append(Schmidt_coef.tolist())
       print('Loss step {}: {}'.format(i, E))
 
-
-with open('history_loss_{}_rdm{}.txt'.format(name_models[model_nbr],l), 'w') as f:
-        f.write(json.dumps(measure_progress))
-with open('Schmidt_coef_{}_rdm{}.txt'.format(name_models[model_nbr],l), 'w') as f:
-        f.write(json.dumps(schmidt_progress))
-with open('ParamsA_{}_rdm{}.txt'.format(name_models[model_nbr],l), 'w') as f:
-        f.write(json.dumps(paramsA_progress))
-with open('ParamsB_{}_rdm{}.txt'.format(name_models[model_nbr],l), 'w') as f:
-        f.write(json.dumps(paramsB_progress))
-
+import json
+with open('history_loss_{}_rdmset.txt'.format(name_models), 'w') as f:
+    f.write(json.dumps(measure_progress))
+with open('Schmidt_coef_{}_rdmset.txt'.format(name_models), 'w') as f:
+    f.write(json.dumps(schmidt_progress))
+with open('ParamsA_{}_rdmset.txt'.format(name_models), 'w') as f:
+    f.write(json.dumps(paramsA_progress))
+with open('ParamsB_{}_rdmset.txt'.format(name_models), 'w') as f:
+    f.write(json.dumps(paramsB_progress))
