@@ -3,8 +3,13 @@ Entanglement forging with autoregressive neural network (ARNN). In the Schrödin
 
 ## Structure
 
-In [forging_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/forging_functions.py)
+In [config.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/config.py), there are the definitions of the Hamiltonian and the ARNN
 
+In [forging_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/forging_functions.py), there are functions used for the entanglement forging
+
+In [generative_algo_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/generative_algo_functions.py), there are functions used for the generative algorithm
+
+In [generative_algo_functions.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/generative_algo_functions.py), there are functions used for the generative algorithm
 
 
 ## Package Versions
