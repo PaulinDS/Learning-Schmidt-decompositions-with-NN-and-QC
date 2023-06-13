@@ -4,6 +4,7 @@ import pennylane as qml
 from jax.lax import scan
 from jax.lax import cond
 import numpy as np
+from functools import partial
 
 import config
 
@@ -38,7 +39,7 @@ def Circuits_ObservableA(params, inputs):
     @jax.jit   
     @qml.qnode(dev, interface='jax', diff_method="backprop")
     def qnode(params, inputs):
-        for i in range(n_qubits//2):
+        for i in range(config.n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
         return qml.expval(config.H_A) 
@@ -50,7 +51,7 @@ def Circuits_ObservableB(params, inputs):
     @jax.jit
     @qml.qnode(dev, interface='jax', diff_method="backprop")
     def qnode(params, inputs):
-        for i in range(n_qubits//2):
+        for i in range(config.n_qubits//2):
           qml.RX(jnp.pi*inputs[i], wires=i)
         brick_wall_entangling(params)
         return qml.expval(config.H_B)
@@ -92,8 +93,8 @@ def Circuits_Observable_phi_jitA(params, inputs_n ,inputs_m, p):
   new_inputs_n = inputs_n[k]*inputs_m + (1-inputs_n[k])*inputs_n
   new_inputs_m = inputs_n[k]*inputs_n + (1-inputs_n[k])*inputs_m
 
-  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=N)[0][1:]
-  T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
+  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=config.N)[0][1:]
+  T = jnp.nonzero(new_inputs_n == 1, size=config.N)[0]
   t0 = new_inputs_n[0]
 
   dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
@@ -104,20 +105,20 @@ def Circuits_Observable_phi_jitA(params, inputs_n ,inputs_m, p):
       #X
       qml.RX(phi=((t0==1)*jnp.pi), wires=0)
       for t in T:
-        for i in range(1,N):
+        for i in range(1,config.N):
           qml.RX(phi=((t==i)*jnp.pi), wires=i)
       
-      for i in range(N):
+      for i in range(config.N):
         qml.Rot(phi=((k==i)*jnp.pi),theta=((k==i)*jnp.pi/2),omega=(jnp.pi*0),wires=i) #H
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([2,3]))*(k==i)*jnp.pi, wires=i) #Z
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([1,3]))*(k==i)*jnp.pi/2, wires=i) #S
 
       #CNOT
       for l in S:
-        for i in range(N):
-          for j in range(i+1,N):
+        for i in range(config.N):
+          for j in range(i+1,config.N):
               qml.CRZ(jnp.pi*(k==i)*(l==j), wires=[i,j])
               qml.CRot(jnp.pi/2*(k==i)*(l==j), jnp.pi*(k==i)*(l==j), -jnp.pi/2*(k==i)*(l==j), wires=[i,j])
               qml.ControlledPhaseShift(jnp.pi*(k==i)*(l==j), wires=[i,j])
@@ -137,8 +138,8 @@ def Circuits_Observable_phi_jitB(params, inputs_n, inputs_m, p):
   new_inputs_n = inputs_n[k]*inputs_m + (1-inputs_n[k])*inputs_n
   new_inputs_m = inputs_n[k]*inputs_n + (1-inputs_n[k])*inputs_m
 
-  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=N)[0][1:]
-  T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
+  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=config.N)[0][1:]
+  T = jnp.nonzero(new_inputs_n == 1, size=config.N)[0]
   t0 = new_inputs_n[0]
 
   dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
@@ -149,20 +150,20 @@ def Circuits_Observable_phi_jitB(params, inputs_n, inputs_m, p):
       #X
       qml.RX(phi=((t0==1)*jnp.pi), wires=0)
       for t in T:
-        for i in range(1,N):
+        for i in range(1,config.N):
           qml.RX(phi=((t==i)*jnp.pi), wires=i)
       
-      for i in range(N):
+      for i in range(config.N):
         qml.Rot(phi=((k==i)*jnp.pi),theta=((k==i)*jnp.pi/2),omega=(jnp.pi*0),wires=i) #H
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([2,3]))*(k==i)*jnp.pi, wires=i) #Z
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([1,3]))*(k==i)*jnp.pi/2, wires=i) #S
 
       #CNOT
       for l in S:
-        for i in range(N):
-          for j in range(i+1,N):
+        for i in range(config.N):
+          for j in range(i+1,config.N):
               qml.CRZ(jnp.pi*(k==i)*(l==j), wires=[i,j])
               qml.CRot(jnp.pi/2*(k==i)*(l==j), jnp.pi*(k==i)*(l==j), -jnp.pi/2*(k==i)*(l==j), wires=[i,j])
               qml.ControlledPhaseShift(jnp.pi*(k==i)*(l==j), wires=[i,j])
@@ -181,8 +182,8 @@ def Circuits_Observable_phi_list_jitA(params, inputs_n, inputs_m, p):
   new_inputs_n = inputs_n[k]*inputs_m + (1-inputs_n[k])*inputs_n
   new_inputs_m = inputs_n[k]*inputs_n + (1-inputs_n[k])*inputs_m
 
-  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=N)[0][1:]
-  T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
+  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=config.N)[0][1:]
+  T = jnp.nonzero(new_inputs_n == 1, size=config.N)[0]
   t0 = new_inputs_n[0]
 
   dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
@@ -193,20 +194,20 @@ def Circuits_Observable_phi_list_jitA(params, inputs_n, inputs_m, p):
       #X
       qml.RX(phi=((t0==1)*jnp.pi), wires=0)
       for t in T:
-        for i in range(1,N):
+        for i in range(1,config.N):
           qml.RX(phi=((t==i)*jnp.pi), wires=i)
       
-      for i in range(N):
+      for i in range(config.N):
         qml.Rot(phi=((k==i)*jnp.pi),theta=((k==i)*jnp.pi/2),omega=(jnp.pi*0),wires=i) #H
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([2,3]))*(k==i)*jnp.pi, wires=i) #Z
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([1,3]))*(k==i)*jnp.pi/2, wires=i) #S
 
       #CNOT
       for l in S:
-        for i in range(N):
-          for j in range(i+1,N):
+        for i in range(config.N):
+          for j in range(i+1,config.N):
               qml.CRZ(jnp.pi*(k==i)*(l==j), wires=[i,j])
               qml.CRot(jnp.pi/2*(k==i)*(l==j), jnp.pi*(k==i)*(l==j), -jnp.pi/2*(k==i)*(l==j), wires=[i,j])
               qml.ControlledPhaseShift(jnp.pi*(k==i)*(l==j), wires=[i,j]) 
@@ -225,8 +226,8 @@ def Circuits_Observable_phi_list_jitB(params, inputs_n, inputs_m, p):
   new_inputs_n = inputs_n[k]*inputs_m + (1-inputs_n[k])*inputs_n
   new_inputs_m = inputs_n[k]*inputs_n + (1-inputs_n[k])*inputs_m
 
-  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=N)[0][1:]
-  T = jnp.nonzero(new_inputs_n == 1, size=N)[0]
+  S = jnp.nonzero(new_inputs_n != new_inputs_m, size=config.N)[0][1:]
+  T = jnp.nonzero(new_inputs_n == 1, size=config.N)[0]
   t0 = new_inputs_n[0]
 
   dev = qml.device('default.qubit.jax', wires=config.n_qubits//2)  
@@ -237,20 +238,20 @@ def Circuits_Observable_phi_list_jitB(params, inputs_n, inputs_m, p):
       #X
       qml.RX(phi=((t0==1)*jnp.pi), wires=0)
       for t in T:
-        for i in range(1,N):
+        for i in range(1,config.N):
           qml.RX(phi=((t==i)*jnp.pi), wires=i)
       
-      for i in range(N):
+      for i in range(config.N):
         qml.Rot(phi=((k==i)*jnp.pi),theta=((k==i)*jnp.pi/2),omega=0,wires=i) #H
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([2,3]))*(k==i)*jnp.pi, wires=i) #Z
-      for i in range(N):
+      for i in range(config.N):
         qml.PhaseShift(jnp.isin(new_p,jnp.array([1,3]))*(k==i)*jnp.pi/2, wires=i) #S
 
       #CNOT
       for l in S:
-        for i in range(N):
-          for j in range(i+1,N):
+        for i in range(config.N):
+          for j in range(i+1,config.N):
               qml.CRZ(jnp.pi*(k==i)*(l==j), wires=[i,j])
               qml.CRot(jnp.pi/2*(k==i)*(l==j), jnp.pi*(k==i)*(l==j), -jnp.pi/2*(k==i)*(l==j), wires=[i,j])
               qml.ControlledPhaseShift(jnp.pi*(k==i)*(l==j), wires=[i,j]) 
@@ -289,7 +290,7 @@ def energy_vmap2(params_A, params_B, Schmidt_coef, bitstringA, bitstringB):
 
   A = Circ_Obs_part_overA_vmap(inputs=bitstringA)
   B = Circ_Obs_part_overB_vmap(inputs=bitstringB)
-  E += jnp.sum(Schmidt_coef*Schmidt_coef*jnp.sum(H_overlap_coef_jnp*A*B,axis=1))
+  E += jnp.sum(Schmidt_coef*Schmidt_coef*jnp.sum(config.H_overlap_coef_jnp*A*B,axis=1))
 
 
   ##off diago terms
@@ -334,85 +335,6 @@ grad_E_fn_circB = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 1))
 grad_E_fn_schmidt = jax.jit(jax.value_and_grad(energy_vmap2, argnums = 2))
 
 
-
-def creat_EF_hamiltonian(H_of, n_qubits):
-
-    """
-    group the operators into overlapping and local ones, convert them into qml, code taken and adapted from:
-    https://github.com/cqsl/Entanglement-Forging-with-GNN-models
-    
-    H_of: Hamiltonian of the system expressed with openfermion
-    n_qubits: number of qubits of the total system
-    """
-
-    gates = {"X": qml.PauliX, "Y": qml.PauliY, "Z": qml.PauliZ, "I":qml.Identity}
-
-    op_list_list = []
-
-    local_operators_A = []
-    local_operators_B = []
-    overlap_operators = []
-    
-    N = n_qubits//2
-
-    k = 0
-    for o in H_of: 
-        k += 1
-        if k!=-2: #to remove constant terms, if any
-            for keys in o.terms.keys():
-                indices = np.array(keys)[:,0].astype(np.int64)
-                Ops = np.array(keys)[:,1]
-                op_list = [[np.real(x) for x in o.terms.values()][0]] 
-                for i in range(n_qubits//2):
-                    if np.isin(i, indices):
-                        idx = np.where(indices == i)
-                        O = gates[Ops[idx][0]](i)
-                    else:
-                        O = gates["I"](i)
-                    if i == 0:
-                        op = O
-                    else:
-                        op = op@O
-                op_list.append(op)
-                for i in range(n_qubits//2, n_qubits):
-                    if np.isin(i, indices):
-                        idx = np.where(indices == i)
-                        O = gates[Ops[idx][0]](i%(n_qubits//2))
-                    else:
-                        O = gates["I"](i%(n_qubits//2))
-                    if i == n_qubits//2:
-                        op = O
-                    else:
-                        op = op@O
-                op_list.append(op)
-                if ((indices < N)*1.0).mean() == 1: # All indices in A
-                    local_operators_A.append(op_list)
-                elif ((indices < N)*1.0).mean() == 0.: # All indices in B
-                    local_operators_B.append(op_list)
-                else:
-                    overlap_operators.append(op_list)
-
-
-    H_A = 0j
-    for h in local_operators_A:
-        H_A += h[0]*np.array(h[1].matrix())
-
-    H_B = 0j
-    for h in local_operators_B:
-        H_B += h[0]*np.array(h[2].matrix())
-
-    H_A = qml.Hermitian(H_A, wires = range(n_qubits//2))
-    H_B = qml.Hermitian(H_B, wires = range(n_qubits//2))
-    H_AB = overlap_operators
-
-
-    H_overlap_A = [H_AB[i][1] for i in range(len(H_AB))]
-    H_overlap_B = [H_AB[i][2] for i in range(len(H_AB))]
-    H_overlap_coef = [H_AB[i][0] for i in range(len(H_AB))]
-
-    H_overlap_coef_jnp = jnp.array(H_overlap_coef)
-    
-    return H_A, H_B, H_overlap_A, H_overlap_B, H_overlap_coef_jnp
 
 
 
