@@ -28,8 +28,8 @@ from optax import adabelief, sgd
 #TFIM 1d 14 spins
 n_qubits = 14
 H_of = QubitOperator('Z{} Z0'.format(n_qubits-1))
-  H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
 for i in range(n_qubits):
+  H_of += QubitOperator('Z{} Z{}'.format(i, i+1)) 
   H_of += QubitOperator('X{}'.format(i))
   
 n_qubits = n_qubits
@@ -55,6 +55,7 @@ NN_layers = 5 #nbr of layers
 
 hi = nk.hilbert.Spin(s=0.5, N=int(N)) 
 sa = nk.sampler.ARDirectSampler(hi) 
+get_sample = partial(sample_NN, sa = sa, NN_model = model, n_qubits = n_qubits)
 #sa = myARDirectSampler(hi) #if we want to control the number of one, need to adapt the sampler
 model = nk.models.ARNNDense(hilbert=hi, layers= NN_layers, features=NN_features, param_dtype = np.float32)
 
