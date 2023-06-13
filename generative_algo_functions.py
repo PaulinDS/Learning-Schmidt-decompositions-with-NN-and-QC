@@ -31,7 +31,7 @@ off_diago_terms_perm_sym_vmap = jax.jit(jax.vmap(jax.vmap(off_diago_terms_perm_s
 
 
 
-def sample_NN(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits = 10):
+def sample_NN_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits = 10):
     """
     get sample from NN, function taken and adapted from https://github.com/cqsl/Entanglement-Forging-with-GNN-models 
     $s \in {-1, 1}$ and $S \in {0,1}$ conversion.
@@ -43,6 +43,24 @@ def sample_NN(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits
     Sample, _ = nk.sampler.ARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) 
     #Sample, _ = myARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) #modification of the sampler, if we want to control the number of excitations for exemple
     Sample = Sample.reshape(-1, n_qubits//2)
+    s = jax.lax.stop_gradient(Sample)
+    S = (s + 1)/2
+    S = S.astype(int)
+    return s, S
+
+  
+ def sample_NN_non_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = None, n_qubits = 10):
+    """
+    get sample from NN, function taken and adapted from https://github.com/cqsl/Entanglement-Forging-with-GNN-models 
+    $s \in {-1, 1}$ and $S \in {0,1}$ conversion.
+    NN_params: Parameters of the ARNN
+    chain_length: Number of samples we want to get from the ARNN
+    sa: Netket sampler
+    NN_model: Netket NN model
+    """
+    Sample, _ = nk.sampler.ARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) 
+    #Sample, _ = myARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) #modification of the sampler, if we want to control the number of excitations for exemple
+    Sample = Sample.reshape(-1, n_qubits)
     s = jax.lax.stop_gradient(Sample)
     S = (s + 1)/2
     S = S.astype(int)
