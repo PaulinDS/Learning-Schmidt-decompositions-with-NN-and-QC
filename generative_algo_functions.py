@@ -6,8 +6,7 @@ import netket as nk
 from jaxopt import ProjectedGradient
 from jaxopt.projection import projection_l2_sphere
 
-
-
+from forging_functions.py import *
 
 
 #functions to construct the matrix for the syst of equation, Equation (...) in the paper, for permutation symetric systems
@@ -42,7 +41,7 @@ def sample_NN_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = None,
     """
     Sample, _ = nk.sampler.ARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) 
     #Sample, _ = myARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) #modification of the sampler, if we want to control the number of excitations for exemple
-    Sample = Sample.reshape(-1, n_qubits//2)
+    Sample = Sample.reshape(-1, config.n_qubits//2)
     s = jax.lax.stop_gradient(Sample)
     S = (s + 1)/2
     S = S.astype(int)
@@ -60,7 +59,7 @@ def sample_NN_non_perm_sym(NN_params, chain_length = 20, sa = None, NN_model = N
     """
     Sample, _ = nk.sampler.ARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) 
     #Sample, _ = myARDirectSampler.sample(sa, NN_model, NN_params, chain_length = chain_length) #modification of the sampler, if we want to control the number of excitations for exemple
-    Sample = Sample.reshape(-1, n_qubits)
+    Sample = Sample.reshape(-1, config.n_qubits)
     s = jax.lax.stop_gradient(Sample)
     S = (s + 1)/2
     S = S.astype(int)
