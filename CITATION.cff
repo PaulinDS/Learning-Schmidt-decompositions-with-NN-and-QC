@@ -1,4 +1,4 @@
-cff-version: 0.1
+cff-version: 0.0.1
 message: "If you use this software, please cite it as below."
 authors:
 - family-names: "de Schoulepnikoff"
@@ -17,6 +17,6 @@ authors:
 
 
 title: "Learning Schmidt decompositions with artificial neural networks and quantum circuits"
-version: 0.1
+version: 0.0.1
 date-released: 2023
 url: "https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC"
