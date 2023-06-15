@@ -70,7 +70,7 @@ def Loss_ARNN(NN_params, set_bitstring_syst, lambdas):
   set_bitstring_syst: set of bitstrings we want to train on
   lambdas: target Schmidt coefficient
   """
-  pi = jnp.exp(config.model.apply(NN_params, 2*(A_new-0.5)))
+  pi = jnp.exp(config.model.apply(NN_params, 2*(A_new-0.5)))**2
 
   ## MMD
   L = 0
