@@ -95,7 +95,7 @@ def Generative_loop_perm_sym(NN_params, params_A, params_B, A):
 
   #construct the matrix of the syst of eqs
   bitstring_syst = jnp.concatenate((A,G), axis=0)
-  set_bitstring_syst, iS = jnp.unique(bitstring_syst, return_index=False, return_inverse=True, return_counts=False, axis=0)
+  set_bitstring_syst, iS = jnp.unique(bitstring_syst, return_index=True, return_inverse=False, return_counts=False, axis=0)
   
   #to ensure that functions always have arguments with the same shape, we remove the repetition of bitstrings after constructing the matrix, otherwise it jits again every time.
   d = diago_terms_perm_sym_vmap(params_A, params_B, bitstring_syst)
