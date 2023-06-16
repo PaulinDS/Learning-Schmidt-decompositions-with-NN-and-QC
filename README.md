@@ -13,7 +13,7 @@ In [generative_algo_functions.py](https://github.com/PaulinDS/Learning-Schmidt-d
 
 In [generative_algo_non_perm_sym.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/generative_algo_non_perm_sym.py), there is an example of how to use the different functions to run the algorithm generating the set the bitstrings on a non permutation symetric system.
 
-In [schrodinger_forging_VQE.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/schrodinger_forging_VQE.py), there is an example of how to use the different functions to do the Schrodinger VQE.
+In [schrodinger_forging_VQE.py](https://github.com/PaulinDS/Learning-Schmidt-decompositions-with-NN-and-QC/blob/main/schrodinger_forging_VQE.py), there is an example of how to use the different functions to do the Schrodinger VQE. This part can be significantly accelerated with the use of GPUs.
 
 
 ## Package Versions
